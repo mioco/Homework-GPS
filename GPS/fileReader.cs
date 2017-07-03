@@ -11,12 +11,12 @@ namespace GPS
 {
     class fileReader
     {
+        OpenFileDialog f = new OpenFileDialog();
         // 导入文件
         public List<List<string>> readFile(int count, bool start = false)
         {
             List<List<string>> dataChunk = new List<List<string>>();
             Stream myStream = null;
-            OpenFileDialog f = new OpenFileDialog();
 
             f.Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
             f.FilterIndex = 2;
@@ -44,7 +44,7 @@ namespace GPS
                                     {
                                         if (tempArr[i].IndexOf('D') != -1)
                                         {
-                                            tempArr[i] = toNumber(tempArr[i]);
+                                            tempArr[i] = tempArr[i].Replace('D', 'E'); ;
                                         }
                                         chunk.Add(tempArr[i]);
                                     }
@@ -83,6 +83,7 @@ namespace GPS
         }
 
         // 科学计数法转换成浮点数
+        // 虽然没什么用，但是不舍得删
         private string toNumber(string str)
         {
             str = str.Replace('D', 'E');
@@ -100,6 +101,11 @@ namespace GPS
             string format = "0." + string.Join("", decimals);
             str = Double.Parse(str, System.Globalization.NumberStyles.Float).ToString(format);
             return str;
+        }
+
+        public string getPath()
+        {
+            return f.FileName;
         }
     }
 }
