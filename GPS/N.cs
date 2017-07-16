@@ -8,7 +8,7 @@ namespace GPS
 {
     class N
     {
-        public Dictionary<string, double> GPSPosition = new Dictionary<string, double>();
+        public position GPSPosition = new position();
         public int PRN, year, month, day, hour, min;
         public double sec, clockSkew, clockDrift, clockDriftSpeed, IODE, Crs,
                       delta_n, M0, Cuc, e, Cus, sqrt_A, TOE, Cic, OMEGA0, Cis,
@@ -17,9 +17,12 @@ namespace GPS
 
         public N(List<string> data)
         {
-            GPSPosition.Add("PRN", ConvertTo<int>(data[0]));
-            GPSPosition.Add("hour", ConvertTo<int>(data[4]));
+            GPSPosition.PRN = ConvertTo<int>(data[0]);
+            GPSPosition.hour = ConvertTo<int>(data[4]);
             hour = ConvertTo<int>(data[4]);
+            clockSkew = ConvertTo<double>(data[7]);
+            clockDrift = ConvertTo<double>(data[8]);
+            clockDriftSpeed = ConvertTo<double>(data[9]);
             Crs = ConvertTo<double>(data[11]);
             delta_n = ConvertTo<double>(data[12]);
             M0 = ConvertTo<double>(data[13]);
@@ -45,11 +48,12 @@ namespace GPS
         }
 
         // GPS位置
-        public Dictionary<string, double> GPSPositionCalculate()
+        public position GPSPositionCalculate()
         {
             double MU = 3.986005 * Math.Pow(10, 14);
             double n = Math.Sqrt(MU) / Math.Pow(sqrt_A, 3) + delta_n;
-            int t = (24 * 6 + hour) * 3600;
+            double t = (24 * 6 + hour) * 3600;
+            double toc = (24 * 6 + 9.5) * 3600;
             double tk = t - TOE;
             double Mk = M0 + n * tk;
             double Ek = Mk;
@@ -72,15 +76,16 @@ namespace GPS
             double xk = rk * Math.Cos(uk);
             double yk = rk * Math.Sin(uk);
             double omegae = 7.29211567 * Math.Pow(10, -5);
-            double OMEGAk = OMEGA0 + (OMEGA - omegae) * tk - omegae * TOE; ;
-            GPSPosition.Add("Xk", (xk * Math.Cos(OMEGAk) - yk * Math.Cos(ik) * Math.Sin(OMEGAk)) / 1000);
-            GPSPosition.Add("Yk", (xk * Math.Sin(OMEGAk) + yk * Math.Cos(ik) * Math.Cos(OMEGAk)) / 1000);
-            GPSPosition.Add("Zk", (yk * Math.Sin(ik)) / 1000);
+            double OMEGAk = OMEGA0 + (OMEGA - omegae) * tk - omegae * TOE;
+            GPSPosition.X = (xk * Math.Cos(OMEGAk) - yk * Math.Cos(ik) * Math.Sin(OMEGAk)) / 1000;
+            GPSPosition.Y = (xk * Math.Sin(OMEGAk) + yk * Math.Cos(ik) * Math.Cos(OMEGAk)) / 1000;
+            GPSPosition.Z = (yk * Math.Sin(ik)) / 1000;
+            GPSPosition.B = clockSkew + clockDriftSpeed * (toc - t) + clockDrift * (toc - t) * (toc - t);
 
             return GPSPosition;
         }
-        
-        static public Dictionary<int, double[]> GPSPositionAt(string[] GPS, List<Dictionary<string, double>> allGPSPosition, double percent)
+        // 指定时间卫星位置
+        static public Dictionary<int, double[]> GPSPositionAt(string[] GPS, List<position> allGPSPosition, double percent)
         {
             percent = percent / 120;
             Dictionary<int, double[]> receiverPosition = new Dictionary<int, double[]>();
@@ -88,8 +93,8 @@ namespace GPS
             Dictionary<int, List<double[]>> a = new Dictionary<int, List<double[]>>();
             foreach (var item in allGPSPosition)
             {
-                int PRN = (int)item["PRN"];
-                double[] position = { item["Xk"], item["Yk"], item["Zk"] };
+                int PRN = (int)item.PRN;
+                double[] position = { item.X, item.Y, item.Z, item.B };
                 if (a.ContainsKey(PRN))
                 {
                     a[PRN].Add(position);
@@ -103,12 +108,14 @@ namespace GPS
             }
             foreach (var position in a)
             {
-                receiverPosition.Add(position.Key, new double[3] {
-                    (position.Value[1][0] - position.Value[0][0]) * percent,
-                    (position.Value[1][1] - position.Value[0][1]) * percent,
-                    (position.Value[1][2] - position.Value[0][2]) * percent
+                receiverPosition.Add(position.Key, new double[4] {
+                    (position.Value[1][0] - position.Value[0][0]) * percent + position.Value[0][0],
+                    (position.Value[1][1] - position.Value[0][1]) * percent + position.Value[0][1],
+                    (position.Value[1][2] - position.Value[0][2]) * percent + position.Value[0][2],
+                    (position.Value[1][3] - position.Value[0][3]) * percent + position.Value[0][3],
                 });
             }
+
             return receiverPosition;
         }
 

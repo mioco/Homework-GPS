@@ -16,11 +16,10 @@ namespace GPS
         public List<List<string>> readFile(int count, bool start = false)
         {
             List<List<string>> dataChunk = new List<List<string>>();
-            Stream myStream = null;
-
             f.Filter = "txt files (*.txt)|*.txt|All files (*.*)|*.*";
             f.FilterIndex = 2;
             f.RestoreDirectory = true;
+            Stream myStream = null;
 
             if (f.ShowDialog() == true)
             {
@@ -28,43 +27,44 @@ namespace GPS
                 {
                     if ((myStream = f.OpenFile()) != null)
                     {
-                        using (StreamReader r = new StreamReader(f.OpenFile()))
-                        {
-                            string line;
-                            List<string> chunk = new List<string>();
-                            int index = 0;
-                            while ((line = r.ReadLine()) != null)
-                            {
-                                if (start)
-                                {
-                                    if (line.IndexOf('D') != -1) line = addSpace(line);
-                                    List<string> tempArr = line.Split(' ').ToList();
-                                    tempArr.RemoveAll(String.IsNullOrEmpty);
-                                    for (int i = 0; i < tempArr.Count; ++i)
-                                    {
-                                        if (tempArr[i].IndexOf('D') != -1)
-                                        {
-                                            tempArr[i] = tempArr[i].Replace('D', 'E'); ;
-                                        }
-                                        chunk.Add(tempArr[i]);
-                                    }
-                                    if (++index >= count)
-                                    {
-                                        index = 0;
-                                        dataChunk.Add(chunk);
-                                        chunk = new List<string>();
-                                    }
-                                }
-                                // 去掉头
-                                if (line.Trim() == "END OF HEADER")
-                                    start = true;
-                            }
-                        }
+                        dataChunk = handleFile(count, start);
                     }
                 }
                 catch (Exception ex)
                 {
                     MessageBox.Show("Error: Could not read file from disk. Original error: " + ex.Message);
+                }
+            }
+            return dataChunk;
+        }
+        // 处理文件
+        public List<List<string>> handleFile(int count, bool start)
+        {
+            List<List<string>> dataChunk = new List<List<string>>();
+            using (StreamReader r = new StreamReader(f.OpenFile()))
+            {
+                string line;
+                List<string> chunk = new List<string>();
+                int index = 0;
+                while ((line = r.ReadLine()) != null)
+                {
+                    if (line.IndexOf('D') != -1) line = addSpace(line);
+                    List<string> tempArr = line.Split(' ').ToList();
+                    tempArr.RemoveAll(String.IsNullOrEmpty);
+                    for (int i = 0; i < tempArr.Count; ++i)
+                    {
+                        if (tempArr[i].IndexOf('D') != -1)
+                        {
+                            tempArr[i] = tempArr[i].Replace('D', 'E'); ;
+                        }
+                        chunk.Add(tempArr[i]);
+                    }
+                    if (++index >= count)
+                    {
+                        index = 0;
+                        dataChunk.Add(chunk);
+                        chunk = new List<string>();
+                    }
                 }
             }
             return dataChunk;
